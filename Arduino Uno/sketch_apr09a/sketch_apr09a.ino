@@ -14,30 +14,17 @@
 #define in3 8
 #define in4 5
 
-int strength, angle;
 String msg, cmd;
-
-/*
-  This code is to Remove ambience noise from sensor data.
-  IR LED connected to Digital pin: 6
-  IR diode connected to analog input:A3
-
-  by-Abhilash Patel
-*/
 
 //TCRT5000 InfraRed Sensor Connections
 
 // SensorLeft
-
 #define analogInfrLeft A0
 #define digitalInfrLeft 7
 
 // SensorRight
-
-#define analogInfrRight A3
+#define analogInfrRight A1
 #define digitalInfrRight 6
-
-int a, b, c, d, e, f;
 
 //Ultrasoninc Sensor HC-SR04 Connections
 #define echoPin 2 // attach pin D2 Arduino to pin Echo of HC-SR04
@@ -45,6 +32,8 @@ int a, b, c, d, e, f;
 
 //defines variables
 int distance = 100; // variable for the distance measurement
+boolean obstacleDetection;
+boolean lineTracking;
 
 #define MAX_DISTANCE 200
 
@@ -52,7 +41,6 @@ NewPing sonar(trigPin, echoPin, MAX_DISTANCE);
 
 void setup() {
   // put your setup code here, to run once:
-
   Serial.begin(9600); // // Serial Communication is starting with 9600 of baudrate speed
 
   // Set all the motor control pins to outputs
@@ -66,8 +54,8 @@ void setup() {
   //pinMode(13, OUTPUT);
 
   // Set all infrared sensor pins to outputs
-  //pinMode(digitalInfrLeft, OUTPUT);
-  //pinMode(digitalInfrRight, OUTPUT);
+  pinMode(analogInfrLeft, INPUT);
+  pinMode(analogInfrRight, INPUT);
 
   // Turn off motors - Initial state
   digitalWrite(in1, LOW);
@@ -75,11 +63,12 @@ void setup() {
   digitalWrite(in3, LOW);
   digitalWrite(in4, LOW);
 
-  analogWrite(enA, 255);
-  analogWrite(enB, 255);
+  analogWrite(enA, 150);
+  analogWrite(enB, 150);
 
   distance = readPing();
-  msg = "";
+  msg = "S";
+  obstacleDetection = true;
 }
 
 void loop() {
@@ -87,60 +76,76 @@ void loop() {
   //moveForward();
 
   if (Serial.available() > 0) {
-    delay(40);
+    delay(30);
     // Check if there is data coming
     msg = Serial.readString(); // Read the message as String
     Serial.println("Android Command: " + msg);
   }
 
-  if (distance >= 30)
-  {
-    //moveStop();
+  if (msg == "O") {
+    obstacleDetection = true;
+  } else if (msg == "F") {
+    obstacleDetection = false;
+  }
+
+  if (obstacleDetection) {
+    if (distance < 40) {
+      moveBackward();
+    }
+  }
+
+  /*if (msg == "T") {
+    trackLine();
+    }*/
+
+  if (distance >= 40) {
     if (msg == "D")
       moveForward();
-    else if ( msg == "S")
-      moveStop();
     else if (msg == "L")
       turnLeft();
     else if (msg == "R")
       turnRight();
-  } else
-    moveStop();
-    //moveForward();
+    else if (msg == "S")
+      moveStop();
+    else if (msg == "B")
+      moveBackward();
+  }
+  else {
+    if (msg == "S")
+      moveStop();
+    else if (msg == "B")
+      moveBackward();
+    else
+      moveStop();
+  }
+
   distance = readPing();
 }
 
-void getIRSensorData() {
-
-  digitalWrite(digitalInfrLeft, HIGH);     // Turning ON LED
-  digitalWrite(digitalInfrRight, HIGH);    // Turning ON LED
-
-  delayMicroseconds(500);   //wait
-
-  a = analogRead(analogInfrLeft);       //take reading from photodiode(pin A3) :noise+signal
-  d = analogRead(analogInfrRight);
-
-  digitalWrite(digitalInfrLeft, LOW);   //turn Off LED
-  digitalWrite(digitalInfrRight, LOW);   //turn Off LED
-
-  delayMicroseconds(500);               //wait
-  b = analogRead(analogInfrLeft);       // again take reading from photodiode :noise
-  e = analogRead(analogInfrRight);
-
-  c = a - b;                            //taking differnce:[ (noise+signal)-(noise)] just signal
-  f = d - e;
-
-  //Serial.print(a);         //noise+signal
-  //Serial.print("\t");
-  //Serial.print(b);         //noise
-  //Serial.print("\t");
-  Serial.println(c);         // denoised signal
-  Serial.println(f);         // denoised signal
-
+void trackLine() {
+  if (digitalRead(analogInfrLeft) == 0 && digitalRead(analogInfrRight) == 0) {
+    //Forward
+    moveForward();
+  }
+  //line detected by left sensor
+  else if (digitalRead(analogInfrLeft) == 0 && !analogRead(analogInfrRight) == 0) {
+    //turn left
+    turnLeft();
+  }
+  //line detected by right sensor
+  else if (!digitalRead(analogInfrLeft) == 0 && digitalRead(analogInfrRight) == 0) {
+    //turn right
+    turnRight();
+  }
+  //line detected by none
+  else if (!digitalRead(analogInfrLeft) == 0 && !digitalRead(analogInfrRight) == 0) {
+    //stop
+    moveStop();
+  }
 }
 
 int readPing() {
-  delay(70);
+  //delay(50);
   int cm = sonar.ping_cm();
   if (cm == 0)
   {
@@ -158,10 +163,6 @@ void moveStop() {
 }
 
 void moveForward() {
-
-  analogWrite(enA, 255);
-  analogWrite(enB, 255);
-
   digitalWrite(in1, HIGH);
   digitalWrite(in2, LOW);
   digitalWrite(in3, HIGH);
@@ -169,10 +170,6 @@ void moveForward() {
 }
 
 void moveBackward() {
-
-  analogWrite(enA, 255);
-  analogWrite(enB, 255);
-
   digitalWrite(in1, LOW);
   digitalWrite(in2, HIGH);
   digitalWrite(in3, LOW);
@@ -180,15 +177,11 @@ void moveBackward() {
 }
 
 void turnRight() {
-
-  analogWrite(enA, 255);
-  analogWrite(enB, 255);
-
   digitalWrite(in1, HIGH);
   digitalWrite(in2, LOW);
   digitalWrite(in3, LOW);
   digitalWrite(in4, LOW);
-  delay(500);
+  delay(40);
   digitalWrite(in1, HIGH);
   digitalWrite(in2, LOW);
   digitalWrite(in3, HIGH);
@@ -196,74 +189,13 @@ void turnRight() {
 }
 
 void turnLeft() {
-
-  analogWrite(enA, 255);
-  analogWrite(enB, 255);
-
   digitalWrite(in1, LOW);
   digitalWrite(in2, LOW);
   digitalWrite(in3, HIGH);
   digitalWrite(in4, LOW);
-  delay(500);
+  delay(40);
   digitalWrite(in1, HIGH);
   digitalWrite(in2, LOW);
   digitalWrite(in3, HIGH);
   digitalWrite(in4, LOW);
 }
-
-// This function lets you control spinning direction of motors
-/*void directionControl() {
-  // Set motors to maximum speed
-  // For PWM maximum possible values are 0 to 255
-  // analogWrite(enA, 255);
-  // analogWrite(enB, 255);
-
-  // Turn on motor A & B
-  digitalWrite(in1, HIGH);
-  digitalWrite(in2, LOW);
-  digitalWrite(in3, HIGH);
-  digitalWrite(in4, LOW);
-  delay(2000);
-
-  // Now change motor directions
-  digitalWrite(in1, LOW);
-  digitalWrite(in2, HIGH);
-  digitalWrite(in3, LOW);
-  digitalWrite(in4, HIGH);
-  delay(2000);
-
-  // Turn off motors
-  digitalWrite(in1, LOW);
-  digitalWrite(in2, LOW);
-  digitalWrite(in3, LOW);
-  digitalWrite(in4, LOW);
-  }*/
-
-// This function lets you control speed of the motors
-/*void speedControl() {
-  // Turn on motors
-  digitalWrite(in1, LOW);
-  digitalWrite(in2, HIGH);
-  digitalWrite(in3, LOW);
-  digitalWrite(in4, HIGH);
-*/
-// Accelerate from zero to maximum speed
-/*for (int i = 0; i < 256; i++) {
-  analogWrite(enA, i);
-  analogWrite(enB, i);
-  delay(20);
-  }*/
-
-// Decelerate from maximum speed to zero
-/*for (int i = 255; i >= 0; --i) {
-  analogWrite(enA, i);
-  analogWrite(enB, i);
-  delay(20);
-  }*/
-/*
-  // Now turn off motors
-  digitalWrite(in1, LOW);
-  digitalWrite(in2, LOW);
-  digitalWrite(in3, LOW);
-  digitalWrite(in4, LOW);
-  }*/
