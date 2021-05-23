@@ -8,26 +8,6 @@
     android:backgroundTint="#CDA2A2"
     tools:context=".MainActivity">
 
-    <androidx.appcompat.widget.SwitchCompat
-        android:id="@+id/obstacleSwitch"
-        android:layout_width="200dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:layout_marginEnd="50dp"
-        android:text="Obstacle Detection"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/lineTrackingSwitch" />
-
-    <androidx.appcompat.widget.SwitchCompat
-        android:id="@+id/lineTrackingSwitch"
-        android:layout_width="200dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="25dp"
-        android:layout_marginEnd="50dp"
-        android:text="Line Tracking"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textView3" />
-
     <SeekBar
         android:id="@+id/detectionRangeSeekBar"
         android:layout_width="200dp"
@@ -36,19 +16,22 @@
         android:layout_marginEnd="50dp"
         android:max="80"
         android:progress="30"
+        android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/detectionRangeTextView" />
+        app:layout_constraintTop_toBottomOf="@+id/detectionRangeTextView"
+        tools:visibility="gone" />
 
     <TextView
         android:id="@+id/detectionRangeTextView"
         android:layout_width="200dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="9dp"
         android:layout_marginEnd="50dp"
         android:gravity="center"
         android:text="Detection Range"
+        android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/obstacleSwitch" />
+        tools:layout_editor_absoluteY="118dp"
+        tools:visibility="gone" />
 
     <TextView
         android:id="@+id/textView3"
@@ -57,16 +40,20 @@
         android:layout_marginTop="10dp"
         android:layout_marginEnd="10dp"
         android:text="Car Status:"
+        android:textColor="#000000"
+        android:textStyle="bold"
         app:layout_constraintEnd_toStartOf="@+id/carStatusTextview"
         app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
         android:id="@+id/carStatusTextview"
-        android:layout_width="120dp"
+        android:layout_width="140dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
-        android:layout_marginEnd="50dp"
+        android:layout_marginEnd="30dp"
         android:text="Disconnected"
+        android:textColor="#000000"
+        android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
@@ -144,5 +131,80 @@
         android:text="Connect Bluetooth"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/button_backward" />
+
+    <TextView
+        android:id="@+id/smartGas"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="50dp"
+        android:layout_marginBottom="10dp"
+        android:text="Gas Used:"
+        android:textColor="#000000"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toTopOf="@+id/smartBlock"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/smartBlock"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="50dp"
+        android:layout_marginBottom="10dp"
+        android:text="Transaction Block:"
+        android:textColor="#000000"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toTopOf="@+id/smartDate"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/smartCmmnd"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="50dp"
+        android:layout_marginBottom="10dp"
+        android:text="Command:"
+        android:textColor="#000000"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toTopOf="@+id/smartGas"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/smartContractAddress"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="5dp"
+        android:layout_marginBottom="5dp"
+        android:text="Contract Address"
+        android:textColor="#000000"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <TextView
+        android:id="@+id/smartDate"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="50dp"
+        android:layout_marginBottom="25dp"
+        android:text="HH:mm:ss ->"
+        android:textColor="#000000"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <Button
+        android:id="@+id/button_track"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="30dp"
+        android:layout_marginEnd="100dp"
+        android:text="TRACK LINE"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/textView3" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

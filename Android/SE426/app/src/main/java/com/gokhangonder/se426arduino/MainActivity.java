@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -11,10 +12,14 @@ import android.os.Message;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CompoundButton;
 import android.widget.ImageButton;
+import android.widget.SeekBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.SwitchCompat;
 import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.LifecycleObserver;
 import androidx.lifecycle.OnLifecycleEvent;
@@ -43,41 +48,63 @@ import java.util.concurrent.Future;
 
 public class MainActivity extends AppCompatActivity implements LifecycleObserver, View.OnClickListener {
 
-    private ImageButton forwardButton, backwardButton, stopButton, leftButton, rightButton;
-    private static boolean isRecursionEnable = true;
-    private Button connectButton;
-    private String cmdText = null;
+    private final String TAG = "SE426_CAR";
 
+    // Layout related
+    private ImageButton forwardButton;
+    private ImageButton backwardButton;
+    private ImageButton stopButton;
+    private ImageButton leftButton;
+    private ImageButton rightButton;
+    private Button connectButton;
+    private Button button_track;
+
+    private SwitchCompat lineTrackingSwitch;
+    private SwitchCompat obstacleDetectionSwitch;
+    private SeekBar detectionRangeSeekBar;
+    private TextView detectionRangeTextView;
+    private TextView carBluetoothStatusTextView;
+
+    private TextView smartContractCommandTextView;
+    private TextView smartContractGasTextView;
+    private TextView smartContractBlockTextView;
+    private TextView smartContractDateTextView;
+    private TextView smartContractAddressTextView;
+
+    // Others
+    private static boolean isRecursionEnable = true;
+
+    private String cmdText = null;
+    private String lastCommand = "Stop";
 
     // Rinkeby infura endpoint urls
     // https://rinkeby.infura.io/v3/260ef79ce44d44d4893ab1345390f5ae
     // wss://rinkeby.infura.io/ws/v3/260ef79ce44d44d4893ab1345390f5ae
 
+    // Smart Contract Related
     private final String INFURA_ENDOPOINT_URL = "https://rinkeby.infura.io/v3/260ef79ce44d44d4893ab1345390f5ae";
     private final String INFURA_ENDPOINT_WSS = "wss://rinkeby.infura.io/ws/v3/260ef79ce44d44d4893ab1345390f5ae";
-
-    private Web3j web3;
     private final String contractAddress = "0x84E118709d8bFbCA9555E48065451f94d36EE30d";
-    private Credentials credentials;
-
-    private SE426_Project_Car_sol_ArduinoCar arduinoCar;
-    private String lastCommand = "Stop";
-
-    private final String TAG = "SE426_CAR";
 
     private final BigInteger gasLimit = BigInteger.valueOf(20_000_000_000L);
     private final BigInteger gasPrice = BigInteger.valueOf(4300000);
 
-    private String deviceName = null;
-    private String deviceAddress;
-    public static Handler handler;
-    public static BluetoothSocket mmSocket;
-    public static ConnectedThread connectedThread;
-    public static CreateConnectThread createConnectThread;
+    private Web3j web3;
+    private Credentials credentials;
+    private SE426_Project_Car_sol_ArduinoCar arduinoCar;
 
+    // Bluetooth Related
     private final static int CONNECTING_STATUS = 1; // used in bluetooth handler to identify message status
     private final static int MESSAGE_READ = 2; // used in bluetooth handler to identify message update
 
+    private String deviceName = null;
+    private String deviceAddress;
+
+    public static Handler handler;
+    public static BluetoothSocket mmSocket;
+
+    public static ConnectedThread connectedThread;
+    public static CreateConnectThread createConnectThread;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -87,80 +114,28 @@ public class MainActivity extends AppCompatActivity implements LifecycleObserver
         ProcessLifecycleOwner.get().getLifecycle().addObserver(this);
 
         initComponents();
-        //setupBouncyCastle();
         connectToEthNetwork();
         createContract();
-        updateLastCommand();
+        //updateLastCommand();
         //sendCommand();
-    }
 
-    @OnLifecycleEvent(Lifecycle.Event.ON_STOP)
-    public void onAppBackgrounded() {
-        // When app on background
-        Stop();
-    }
-
-    @OnLifecycleEvent(Lifecycle.Event.ON_DESTROY)
-    public void onAppDestroyed() {
-        Stop();
-    }
-
-    private void initComponents() {
-        forwardButton = findViewById(R.id.button_forward);
-        backwardButton = findViewById(R.id.button_backward);
-        stopButton = findViewById(R.id.button_stop);
-        leftButton = findViewById(R.id.button_left);
-        rightButton = findViewById(R.id.button_right);
-        connectButton = findViewById(R.id.button);
-
-        web3 = Web3j.build(new HttpService(INFURA_ENDOPOINT_URL));
-//        WebSocketService socketService = new WebSocketService(INFURA_ENDPOINT_WSS, true);
-//        web3 = Web3j.build(socketService);
-        credentials = Credentials.
-                create("a9e4e1e425ec2e85baefa0ee8a67372abd9ac41983a9e4c2d9b62c4c029a67fc");
-
-        forwardButton.setOnClickListener(this);
-        stopButton.setOnClickListener(this);
-        leftButton.setOnClickListener(this);
-        rightButton.setOnClickListener(this);
-        backwardButton.setOnClickListener(this);
-        connectButton.setOnClickListener(this);
-
-        Log.d(TAG, "initComponents");
-
-        getDevice();
-        guiHandler();
-
-//        StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.
-//                Builder().permitAll().build();
-//        StrictMode.setThreadPolicy(policy);
-
-    }
-
-    private void getDevice() {
         // If a bluetooth device has been selected from SelectDeviceActivity
         deviceName = getIntent().getStringExtra("deviceName");
         if (deviceName != null) {
             // Get the device address to make BT Connection
             deviceAddress = getIntent().getStringExtra("deviceAddress");
             // Show progree and connection status
-//            toolbar.setSubtitle("Connecting to " + deviceName + "...");
-//            progressBar.setVisibility(View.VISIBLE);
-//            buttonConnect.setEnabled(false);
-
             /*
-            This is the most important piece of code. When "deviceName" is found
-            the code will call a new thread to create a bluetooth connection to the
-            selected device (see the thread code below)
+            When "deviceName" is found the code will call a new thread
+            to create a bluetooth connection to the selected device
              */
             BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
             createConnectThread = new CreateConnectThread(bluetoothAdapter, deviceAddress);
             createConnectThread.start();
             Log.d(TAG, "Bluetooth Device: " + deviceName + " | Address: " + deviceAddress);
+            carBluetoothStatusTextView.setText("Connected!");
         }
-    }
 
-    private void guiHandler() {
         handler = new Handler(Looper.getMainLooper()) {
             @Override
             public void handleMessage(Message msg) {
@@ -168,15 +143,10 @@ public class MainActivity extends AppCompatActivity implements LifecycleObserver
                     case CONNECTING_STATUS:
                         switch (msg.arg1) {
                             case 1:
-//                                toolbar.setSubtitle("Connected to " + deviceName);
-//                                progressBar.setVisibility(View.GONE);
-//                                buttonConnect.setEnabled(true);
-//                                buttonToggle.setEnabled(true);
+                                carBluetoothStatusTextView.setText("Connected!");
                                 break;
                             case -1:
-//                                toolbar.setSubtitle("Device fails to connect");
-//                                progressBar.setVisibility(View.GONE);
-//                                buttonConnect.setEnabled(true);
+                                carBluetoothStatusTextView.setText("Failed to connect!");
                                 break;
                         }
                         break;
@@ -199,79 +169,52 @@ public class MainActivity extends AppCompatActivity implements LifecycleObserver
         };
     }
 
-    private void sendCommand() {
-        if (!isRecursionEnable)
-            // Handle not to start multiple parallel threads
-            return;
-        // isRecursionEnable = false; when u want to stop
-        // on exception on thread make it true again
-        String currentTime = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
-        new Thread(() -> {
-            switch (lastCommand) {
-                case "Drive":
-                    Drive();
-                    break;
-                case "Left":
-                    Left();
-                    break;
-                case "Right":
-                    Right();
-                    break;
-                case "Stop":
-                    Stop();
-                    break;
-            }
-            sendCommand();
-        }).start();
+    @OnLifecycleEvent(Lifecycle.Event.ON_STOP)
+    public void onAppBackgrounded() {
+        // When app on background
+        //Stop();
     }
 
-    private void updateLastCommand() {
-        if (!isRecursionEnable)
-            // Handle not to start multiple parallel threads
-            return;
-        // isRecursionEnable = false; when u want to stop
-        // on exception on thread make it true again
-        String currentTime = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
-        new Thread(() -> {
-            Future<TransactionReceipt> transactionReceipt = arduinoCar.Get().sendAsync();
-            try {
-                List<SE426_Project_Car_sol_ArduinoCar.ReturnResultEventResponse>
-                        listEventResponse = arduinoCar.
-                        getReturnResultEvents(transactionReceipt.get());
-                String result = "Successful transaction. Last GET Command: " +
-                        listEventResponse.get(0)._command + " | HH:mm:ss -> " + currentTime;
-                lastCommand = listEventResponse.get(0)._command;
-                Log.d(TAG, result);
-            } catch (ExecutionException | InterruptedException e) {
-                e.printStackTrace();
-            }
-            updateLastCommand();
-        }).start();
+    @OnLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+    public void onAppDestroyed() {
+        //Stop();
+    }
+
+    private void initComponents() {
+        forwardButton = findViewById(R.id.button_forward);
+        backwardButton = findViewById(R.id.button_backward);
+        stopButton = findViewById(R.id.button_stop);
+        leftButton = findViewById(R.id.button_left);
+        rightButton = findViewById(R.id.button_right);
+        button_track = findViewById(R.id.button_track);
+
+        connectButton = findViewById(R.id.button);
+
+        detectionRangeSeekBar = findViewById(R.id.detectionRangeSeekBar);
+        detectionRangeTextView = findViewById(R.id.detectionRangeTextView);
+        carBluetoothStatusTextView = findViewById(R.id.carStatusTextview);
+
+        smartContractBlockTextView = findViewById(R.id.smartBlock);
+        smartContractCommandTextView = findViewById(R.id.smartCmmnd);
+        smartContractDateTextView = findViewById(R.id.smartDate);
+        smartContractGasTextView = findViewById(R.id.smartGas);
+        smartContractAddressTextView = findViewById(R.id.smartContractAddress);
+
+        forwardButton.setOnClickListener(this);
+        stopButton.setOnClickListener(this);
+        leftButton.setOnClickListener(this);
+        rightButton.setOnClickListener(this);
+        backwardButton.setOnClickListener(this);
+        connectButton.setOnClickListener(this);
+
+        Log.d(TAG, "initComponents");
+
     }
 
     private void createContract() {
         arduinoCar = SE426_Project_Car_sol_ArduinoCar.
                 load(contractAddress, web3, credentials, gasLimit, gasPrice);
-        // check contract validity
-        //Log.d(TAG, "Contract is valid");
-        //Log.d(TAG, transactionReceipt.get().toString());
-    }
-
-    //set up the security provider
-    private void setupBouncyCastle() {
-        final Provider provider = Security.getProvider(BouncyCastleProvider.PROVIDER_NAME);
-        if (provider == null) {
-            // Web3j will set up a provider  when it's used for the first time.
-            return;
-        }
-        if (provider.getClass().equals(BouncyCastleProvider.class)) {
-            return;
-        }
-        //There is a possibility  the bouncy castle
-        // registered by android may not have all ciphers
-        //so we  substitute with the one bundled in the app.
-        Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
-        Security.insertProviderAt(new BouncyCastleProvider(), 1);
+        smartContractAddressTextView.setText(contractAddress);
     }
 
     public void ShowToast(String message) {
@@ -279,15 +222,17 @@ public class MainActivity extends AppCompatActivity implements LifecycleObserver
     }
 
     public void connectToEthNetwork() {
-        //web3 = Web3j.build(new HttpService(INFURA_ENDOPOINT_URL));
-
+        web3 = Web3j.build(new HttpService(INFURA_ENDOPOINT_URL));
+//        WebSocketService socketService = new WebSocketService(INFURA_ENDPOINT_WSS, true);
+//        web3 = Web3j.build(socketService);
+        credentials = Credentials.
+                create("a9e4e1e425ec2e85baefa0ee8a67372abd9ac41983a9e4c2d9b62c4c029a67fc");
         Web3ClientVersion clientVersion = null;
-
         ShowToast(" Now Connecting to Ethereum network");
         Log.d(TAG, "Now Connecting to Ethereum network!");
         try {
             //if the client version has an error the user will
-            // not gain access if successful the user will get connnected
+            //not gain access if successful the user will get connnected
             clientVersion = web3.web3ClientVersion().sendAsync().get();
             if (!clientVersion.hasError()) {
                 ShowToast("Connected!");
@@ -311,7 +256,6 @@ public class MainActivity extends AppCompatActivity implements LifecycleObserver
         } else {
             Log.d(TAG, "NULL");
         }
-
     }
 
     @Override
@@ -319,27 +263,37 @@ public class MainActivity extends AppCompatActivity implements LifecycleObserver
         switch (v.getId()) {
             case R.id.button_forward:
                 cmdText = "D";
-                //connectedThread.write(cmdText);
-                Drive();
+                connectedThread.write(cmdText);
+                new SmartContractTransaction().execute("Drive");
                 ShowToast("Drive");
                 break;
             case R.id.button_stop:
                 cmdText = "S";
-                //connectedThread.write(cmdText);
-                Stop();
+                connectedThread.write(cmdText);
+                new SmartContractTransaction().execute("Stop");
                 ShowToast("Stop");
                 break;
             case R.id.button_left:
                 cmdText = "L";
-                //connectedThread.write(cmdText);
-                Left();
+                connectedThread.write(cmdText);
+                new SmartContractTransaction().execute("Left");
                 ShowToast("Left");
                 break;
             case R.id.button_right:
                 cmdText = "R";
-                //connectedThread.write(cmdText);
-                Right();
+                connectedThread.write(cmdText);
+                new SmartContractTransaction().execute("Right");
                 ShowToast("Right");
+                break;
+            case R.id.button_backward:
+                cmdText = "B";
+                connectedThread.write(cmdText);
+                ShowToast("Back");
+                break;
+            case R.id.button_track:
+                cmdText = "T";
+                connectedThread.write(cmdText);
+                ShowToast("Back");
                 break;
             case R.id.button:
                 Intent intent = new Intent(MainActivity.this, SelectBluetoothDeviceActivity.class);
@@ -366,28 +320,70 @@ public class MainActivity extends AppCompatActivity implements LifecycleObserver
         }
     }
 
-    private void Drive() {
-        Future<TransactionReceipt> transactionReceipt = arduinoCar.Drive().sendAsync();
+    private Future<TransactionReceipt> Drive(Future<TransactionReceipt> transactionReceipt) {
+        transactionReceipt = arduinoCar.Drive().sendAsync();
         ShowLog(transactionReceipt, "Drive");
         lastCommand = "Drive";
+        return transactionReceipt;
     }
 
-    private void Right() {
-        Future<TransactionReceipt> transactionReceipt = arduinoCar.Right().sendAsync();
+    private Future<TransactionReceipt> Right(Future<TransactionReceipt> transactionReceipt) {
+        transactionReceipt = arduinoCar.Right().sendAsync();
         ShowLog(transactionReceipt, "Right");
         lastCommand = "Right";
+        return transactionReceipt;
     }
 
-    private void Left() {
-        Future<TransactionReceipt> transactionReceipt = arduinoCar.Left().sendAsync();
+    private Future<TransactionReceipt> Left(Future<TransactionReceipt> transactionReceipt) {
+        transactionReceipt = arduinoCar.Left().sendAsync();
         ShowLog(transactionReceipt, "Left");
         lastCommand = "Left";
+        return transactionReceipt;
     }
 
-    private void Stop() {
-        Future<TransactionReceipt> transactionReceipt = arduinoCar.Stop().sendAsync();
+    private Future<TransactionReceipt> Stop(Future<TransactionReceipt> transactionReceipt) {
+        transactionReceipt = arduinoCar.Stop().sendAsync();
         ShowLog(transactionReceipt, "Stop");
         lastCommand = "Stop";
+        return transactionReceipt;
+    }
+
+    private class SmartContractTransaction extends AsyncTask<String, Void, String> {
+
+        Future<TransactionReceipt> transactionReceipt;
+        String cmd;
+
+        @Override
+        protected String doInBackground(String... strings) {
+            cmd = strings[0];
+            if (cmd == "Drive")
+                transactionReceipt = Drive(transactionReceipt);
+            else if (cmd == "Left")
+                transactionReceipt = Left(transactionReceipt);
+            else if (cmd == "Right")
+                transactionReceipt = Right(transactionReceipt);
+            else if (cmd == "Stop")
+                transactionReceipt = Stop(transactionReceipt);
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(String s) {
+            super.onPostExecute(s);
+            try {
+                String currentTime = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
+                smartContractGasTextView.setText("Used Gas: " + transactionReceipt.get().getGasUsed().toString());
+                smartContractBlockTextView.setText("Block Number: " + transactionReceipt.get().getBlockNumber().toString());
+                smartContractCommandTextView.setText("Command: " + cmd);
+                smartContractDateTextView.setText("Transaction Complete Date: " + currentTime);
+
+            } catch (ExecutionException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+        }
     }
 
     public static class CreateConnectThread extends Thread {

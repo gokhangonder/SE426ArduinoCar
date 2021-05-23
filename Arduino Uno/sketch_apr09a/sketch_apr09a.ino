@@ -20,11 +20,11 @@ String msg, cmd;
 
 // SensorLeft
 #define analogInfrLeft A0
-#define digitalInfrLeft 7
+//#define digitalInfrLeft 7
 
 // SensorRight
 #define analogInfrRight A1
-#define digitalInfrRight 6
+//#define digitalInfrRight 6
 
 //Ultrasoninc Sensor HC-SR04 Connections
 #define echoPin 2 // attach pin D2 Arduino to pin Echo of HC-SR04
@@ -42,6 +42,7 @@ NewPing sonar(trigPin, echoPin, MAX_DISTANCE);
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600); // // Serial Communication is starting with 9600 of baudrate speed
+  Serial.setTimeout(100);
 
   // Set all the motor control pins to outputs
   pinMode(enA, OUTPUT);
@@ -63,8 +64,8 @@ void setup() {
   digitalWrite(in3, LOW);
   digitalWrite(in4, LOW);
 
-  analogWrite(enA, 150);
-  analogWrite(enB, 150);
+  analogWrite(enA, 200);
+  analogWrite(enB, 200);
 
   distance = readPing();
   msg = "S";
@@ -89,16 +90,14 @@ void loop() {
   }
 
   if (obstacleDetection) {
-    if (distance < 40) {
+    if (distance < 20) {
       moveBackward();
+      delay(100);
+      moveStop();
     }
   }
 
-  /*if (msg == "T") {
-    trackLine();
-    }*/
-
-  if (distance >= 40) {
+  if (distance >= 20) {
     if (msg == "D")
       moveForward();
     else if (msg == "L")
@@ -109,6 +108,8 @@ void loop() {
       moveStop();
     else if (msg == "B")
       moveBackward();
+    else if (msg == "T")
+      trackLine();
   }
   else {
     if (msg == "S")
@@ -123,6 +124,9 @@ void loop() {
 }
 
 void trackLine() {
+  //Serial.println(digitalRead(analogInfrLeft));
+  //Serial.println(digitalRead(analogInfrRight));
+
   if (digitalRead(analogInfrLeft) == 0 && digitalRead(analogInfrRight) == 0) {
     //Forward
     moveForward();
@@ -151,7 +155,7 @@ int readPing() {
   {
     cm = 250;
   }
-  Serial.println(cm);
+  //Serial.println(cm);
   return cm;
 }
 
